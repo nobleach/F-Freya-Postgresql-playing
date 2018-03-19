@@ -10,7 +10,6 @@ open Dapper
 open Npgsql
 open Chiron
 
-
 let connString = "Host=localhost;Database=diesel_demo;Username=postgres;Password=example"
 let connection = new NpgsqlConnection(connString)
 // let connection = new SqlConnection(connString)
@@ -58,20 +57,33 @@ let serializePost (x:Post) =
         do! Json.write "body" x.Body
         do! Json.write "published" x.Published
     }
+
 let getSerializedPost post = 
     post 
     |> Json.serializeWith serializePost 
     |> Json.formatWith JsonFormattingOptions.Pretty
+
+let getSerializedPosts post = 
+    post 
+    |> Json.serializeWith serializePost 
 let sayHello =
     freya {
         let! name = name
-        // let result = getPosts connection
+
+        return Represent.text (sprintf "Hello, %s!" name) }
+
+let joeFact =
+    freya {
         let firstPost = getPosts connection |> Seq.head
-        // let formatCompact = Json.format (Json.serialize result)
         let formatted = getSerializedPost(firstPost)
-        printfn "%A" formatted
 
         return Represent.text (sprintf "%s" formatted) }
+
+let allFacts =
+    freya {
+        let allPosts = getPosts connection
+        let postsAsList = Seq.map getSerializedPosts allPosts |> Seq.toList
+        return Represent.text (sprintf "%s" (Json.format (Json.Array postsAsList ))) }
 
 let sayGoodbye =
     freya {
@@ -89,7 +101,18 @@ let goodbyeMachine =
         methods [GET; HEAD; OPTIONS]
         handleOk sayGoodbye }
 
+let factMachine =
+    freyaMachine {
+        methods [GET; HEAD; OPTIONS]
+        handleOk joeFact }
+
+let factsMachine =
+    freyaMachine {
+        methods [GET; HEAD; OPTIONS]
+        handleOk allFacts }
 let root =
     freyaRouter {
         resource "/hello{/name}" helloMachine
+        resource "/joe" factMachine
+        resource "/all" factsMachine
         resource "/goodbye{/salutation}" goodbyeMachine }

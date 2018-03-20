@@ -11,9 +11,6 @@ open Npgsql
 open Chiron
 
 let connString = "Host=localhost;Database=diesel_demo;Username=postgres;Password=example"
-let connection = new NpgsqlConnection(connString)
-// let connection = new SqlConnection(connString)
-connection.Open()
 
 type Post = { 
     Id:int; 
@@ -27,7 +24,10 @@ let dapperQuery<'Result> (query:string) (connection:NpgsqlConnection) =
 let dapperParametrizedQuery<'Result> (query:string) (param:obj) (connection:SqlConnection) : 'Result seq =
     connection.Query<'Result>(query, param)
 
-let getPosts connection =
+let getPosts =
+    use connection = new NpgsqlConnection(connString)
+    connection.Open()
+
     connection
     |> dapperQuery<Post> "SELECT * From posts"
 
@@ -74,14 +74,14 @@ let sayHello =
 
 let joeFact =
     freya {
-        let firstPost = getPosts connection |> Seq.head
+        let firstPost = getPosts |> Seq.head
         let formatted = getSerializedPost(firstPost)
 
         return Represent.text (sprintf "%s" formatted) }
 
 let allFacts =
     freya {
-        let allPosts = getPosts connection
+        let allPosts = getPosts 
         let postsAsList = Seq.map getSerializedPosts allPosts |> Seq.toList
         return Represent.text (sprintf "%s" (Json.format (Json.Array postsAsList ))) }
 
